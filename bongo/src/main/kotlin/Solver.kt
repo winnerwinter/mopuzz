@@ -1,5 +1,3 @@
-import kotlin.math.ceil
-
 class Solver(private val config: BongoConfig) {
     private var bestScore = 0
     private var bestSolution: List<String>? = null
@@ -7,107 +5,62 @@ class Solver(private val config: BongoConfig) {
     data class GameState(
         val currentWords: List<String>,
         val remainingLetters: Map<Char, Int>,
-        val remainingWildcards: Int
+        val remainingWildcards: Int,
+        val currentScore: Int
     )
 
     fun solve(): List<String> {
         val initialState = GameState(
             currentWords = emptyList(),
             remainingLetters = config.availableLetters,
-            remainingWildcards = config.availableWildcards
+            remainingWildcards = config.availableWildcards,
+            currentScore = 0
         )
 
         backtrack(initialState)
         return bestSolution ?: emptyList()
     }
 
-    private fun getPossibleWords(state: GameState): Set<String> {
-        return (config.happyWords + config.validWords)
+    fun getPossibleWords(state: GameState): Set<String> {
+        val allWords = (config.happyWords + config.validWords).sortedByDescending { it.length }
+        return allWords
+            // Only take words that have letters available
+            .filter { word -> canPlaceWord(word, state) }
+            // Only take words that will create a possible happy down word
             .filter { word ->
-                word.all { char -> state.remainingLetters[char]!! > 0 }
+                val row = state.currentWords.size
+                val col = config.downWordConfig.toMap()[row]
+                if (col == null) {
+                    true
+                } else {
+                    if (word.getOrNull(col) != null) {
+                        val downWordSoFar = buildDownWord(config, state.currentWords).trim() + word[col]
+                        allWords.any { it.length == 4 && it.startsWith(downWordSoFar) }
+                    } else {
+                        false
+                    }
+                }
             }
             .toSet()
     }
 
-    private fun backtrack(state: GameState) {
+    fun backtrack(state: GameState) {
         if (state.currentWords.size == 5) {
-            if (isValidDownWord(state.currentWords)) {
-                val score = calculateTotalScore(state.currentWords)
-                if (score > bestScore) {
-                    println("New best score found: $score")
-                    state.currentWords.forEachIndexed { row, word ->
-                        word.forEachIndexed { col, letter ->
-                            if (row to col in config.downWordConfig) {
-                                print("($letter)")
-                            } else {
-                                print(" $letter ")
-                            }
-
-                        }
-                        repeat(5 - word.length) { print("   ") }
-                        println(" ${calculateWordScore(word, row)}")
-                    }
-                    println("${calculateDownWordScore(state.currentWords)}")
-
-                    bestScore = score
-                    bestSolution = state.currentWords.toList()
-                }
+            val score = calculateTotalScore(config, state.currentWords)
+            if (score > bestScore) {
+                println("New best score found: $score")
+                printStateScore(config, state.currentWords)
+                bestScore = score
+                bestSolution = state.currentWords.toList()
             }
             return
         }
 
         val possibleWords = getPossibleWords(state)
         possibleWords.forEach { word ->
-            if (canPlaceWord(word, state)) {
-                val newState = placeWord(word, state)
-                backtrack(newState)
-            }
+            val newState = placeWord(word, state)
+            backtrack(newState)
         }
-    }
-
-    private fun calculateTotalScore(words: List<String>): Int =
-        words.mapIndexed { index, word -> calculateWordScore(word, index) }.sum() + calculateDownWordScore(words)
-
-    private fun calculateDownWordScore(words: List<String>): Int {
-        val downWord = buildDownWord(words)
-
-        var score = config.downWordConfig.mapIndexed{ index, (row, col) ->
-            val letter = downWord[index]
-            val pointValue = config.letterPoints[letter]!!
-            val multiplier = config.multipliers[row to col] ?: 1
-            pointValue * multiplier
-        }.sum()
-
-        if (downWord in config.happyWords) {
-            score = ceil(score * 1.3).toInt()
-        }
-
-        return score
-    }
-
-    private fun calculateWordScore(word: String, row: Int): Int {
-        var score = word.mapIndexed { col, letter ->
-            val pointValue = config.letterPoints[letter] ?: 0
-            val multiplier = config.multipliers[row to col] ?: 1
-            pointValue * multiplier
-        }.sum()
-
-        if (word in config.happyWords) {
-            score = ceil(score * 1.3).toInt()
-        }
-        return score
-    }
-
-    private fun isValidDownWord(words: List<String>): Boolean {
-        val downWord = buildDownWord(words)
-        return downWord in config.happyWords
-    }
-
-    private fun buildDownWord(words: List<String>): String {
-        return config.downWordConfig.map { (row, col) ->
-            if (row >= words.size || col >= words[row].length) ' '
-            else words[row][col]
-        }.joinToString("")
     }
 
     private fun canPlaceWord(word: String, state: GameState): Boolean {
@@ -127,7 +80,7 @@ class Solver(private val config: BongoConfig) {
         return true
     }
 
-    private fun placeWord(word: String, state: GameState): GameState {
+    fun placeWord(word: String, state: GameState): GameState {
         val newRemainingLetters = state.remainingLetters.toMutableMap()
         var wildcardsUsed = 0
 
@@ -139,10 +92,12 @@ class Solver(private val config: BongoConfig) {
             }
         }
 
+        val newWords = state.currentWords + word
         return GameState(
-            currentWords = ArrayList(state.currentWords).apply { add(word) },
+            currentWords = newWords,
             remainingLetters = newRemainingLetters,
-            remainingWildcards = state.remainingWildcards - wildcardsUsed
+            remainingWildcards = state.remainingWildcards - wildcardsUsed,
+            currentScore = calculateTotalScore(config, newWords)
         )
     }
 }
