@@ -1,66 +1,76 @@
+import kotlin.math.ceil
+
 class Solver(private val config: BongoConfig) {
     private var bestScore = 0
-    private var bestSolution: List<String>? = null
+    private var bestSolution: Map<Int, String>? = null
 
-    data class GameState(
-        val currentWords: List<String>,
+    private data class GameState(
+        val currentWords: Map<Int, String>,
         val remainingLetters: Map<Char, Int>,
         val remainingWildcards: Int,
+        val wordToAdd: Int?,
         val currentScore: Int
     )
 
-    fun solve(): List<String> {
+    fun solve(): Map<Int, String> {
         val initialState = GameState(
-            currentWords = emptyList(),
+            currentWords = emptyMap(),
             remainingLetters = config.availableLetters,
             remainingWildcards = config.availableWildcards,
+            wordToAdd = config.orderToFillInWords.first(),
             currentScore = 0
         )
 
         backtrack(initialState)
-        return bestSolution ?: emptyList()
+        return bestSolution ?: emptyMap()
     }
 
-    fun getPossibleWords(state: GameState): Set<String> {
-        val allWords = (config.happyWords + config.validWords).sortedByDescending { it.length }
+    private fun backtrack(state: GameState) {
+        val score = calculateTotalScore(config, state.currentWords)
+        if (score > bestScore) {
+            println("New best score found: $score")
+            printStateScore(config, state.currentWords)
+            bestScore = score
+            bestSolution = state.currentWords.toSortedMap()
+        }
+
+        if (state.currentWords.size == 5) return
+
+        val possibleWords = getPossibleWords(state, state.wordToAdd!!)
+        possibleWords.forEach { word ->
+            val newState = placeWord(word, state, state.wordToAdd)
+
+            val maxRemainingScore = calculateMaxRemainingScore(config, newState)
+            if (newState.currentScore + maxRemainingScore > bestScore) {
+                backtrack(newState)
+            }
+        }
+    }
+
+    private fun getPossibleWords(state: GameState, rowToInsert: Int): Set<String> {
+        val allWords = (config.happyWords + config.validWords)
         return allWords
             // Only take words that have letters available
             .filter { word -> canPlaceWord(word, state) }
             // Only take words that will create a possible happy down word
             .filter { word ->
-                val row = state.currentWords.size
-                val col = config.downWordConfig.toMap()[row]
+                val col = config.downWordConfig.toMap()[rowToInsert]
                 if (col == null) {
                     true
                 } else {
                     if (word.getOrNull(col) != null) {
-                        val downWordSoFar = buildDownWord(config, state.currentWords).trim() + word[col]
-                        allWords.any { it.length == 4 && it.startsWith(downWordSoFar) }
+                        val downWordMapSoFar = buildDownWord(config, state.currentWords).toMutableMap()
+                        downWordMapSoFar[rowToInsert] = word[col]
+                        val downWordSoFar = downWordMapSoFar.values.joinToString("")
+                        allWords.filter { it.length == 4 }.any {
+                            it.zip(downWordSoFar).all { (a, b) -> a == b || b == ' ' }
+                        }
                     } else {
                         false
                     }
                 }
             }
             .toSet()
-    }
-
-    fun backtrack(state: GameState) {
-        if (state.currentWords.size == 5) {
-            val score = calculateTotalScore(config, state.currentWords)
-            if (score > bestScore) {
-                println("New best score found: $score")
-                printStateScore(config, state.currentWords)
-                bestScore = score
-                bestSolution = state.currentWords.toList()
-            }
-            return
-        }
-
-        val possibleWords = getPossibleWords(state)
-        possibleWords.forEach { word ->
-            val newState = placeWord(word, state)
-            backtrack(newState)
-        }
     }
 
     private fun canPlaceWord(word: String, state: GameState): Boolean {
@@ -80,8 +90,10 @@ class Solver(private val config: BongoConfig) {
         return true
     }
 
-    fun placeWord(word: String, state: GameState): GameState {
+    private fun placeWord(word: String, state: GameState, rowToInsert: Int): GameState {
         val newRemainingLetters = state.remainingLetters.toMutableMap()
+        val newCurrentWords = state.currentWords.toMutableMap()
+        newCurrentWords[rowToInsert] = word
         var wildcardsUsed = 0
 
         word.forEach { letter ->
@@ -92,12 +104,46 @@ class Solver(private val config: BongoConfig) {
             }
         }
 
-        val newWords = state.currentWords + word
         return GameState(
-            currentWords = newWords,
+            currentWords = newCurrentWords,
             remainingLetters = newRemainingLetters,
             remainingWildcards = state.remainingWildcards - wildcardsUsed,
-            currentScore = calculateTotalScore(config, newWords)
+            currentScore = calculateTotalScore(config, newCurrentWords),
+            wordToAdd = config.orderToFillInWords.getOrNull(newCurrentWords.size)
         )
+    }
+
+    /**
+     * Heuristic for calculating the possible remaining score with given letters.
+     * Used to prune traversals where we cant find any set of words that are better than what we have.
+     */
+    private fun calculateMaxRemainingScore(config: BongoConfig, state: GameState): Int {
+        val allMultSquares = config.multipliers + config.downWordConfig.associateWith { 2 }
+
+        val availMults = allMultSquares
+            .filter { (coord, _) -> state.currentWords[coord.first] == null }
+            .toList()
+            .sortedByDescending { (_, mult) -> mult }
+            .toMap()
+            .values
+
+        val sortedRemainingLettersByPoint = state.remainingLetters
+            .toList()
+            .flatMap { (char, count) ->
+                val chars = mutableListOf<Char>()
+                repeat(count) { chars.add(char) }
+                chars
+            }
+            .sortedByDescending { char ->
+                config.letterPoints[char]!!
+            }
+
+        return sortedRemainingLettersByPoint
+            .mapIndexed { index, letter ->
+                val mult = availMults.toList().getOrNull(index) ?: 1
+                ceil(config.letterPoints[letter]!! * mult * 1.3)
+            }
+            .sum()
+            .toInt() + 5 // 5 possible rounding points, maybe?
     }
 }

@@ -8,6 +8,7 @@ data class BongoConfig(
         require(availableLetters.values.sum() == 25) { "Need 25 letters." }
     }
 
+    // need to fill these in more
     val letterPoints: Map<Char, Int> = mapOf(
         'A' to 5,  'B' to 50, 'C' to 40,
         'D' to 30, 'E' to 5,  'F' to 0,
@@ -20,9 +21,33 @@ data class BongoConfig(
         'Y' to 0,  'Z' to 0,
     )
 
-    val happyWords = this::class.java.getResourceAsStream("happy.txt")!!.bufferedReader().readLines().toSet()
+    val happyWords = this::class.java.getResourceAsStream("happy.txt")!!.bufferedReader()
+        .readLines().toSet()
+        // Look at highest scoring words first
+        .sortedByDescending { it.sumOf { letterPoints[it]!! } }
 
-    // Consider only happy words as valid
+    // Consider only happy words as valid, non happy words probably wont be optimal
     val validWords = emptySet<String>()
-        // this::class.java.getResourceAsStream("valid.txt")!!.bufferedReader().readLines().toSet()
+
+    // Calculate placement of words to get highest impact words in highest impact location first
+    // i.e a row with multipliers will probably score more than one without
+    val orderToFillInWords = multipliers.entries.groupBy(
+        keySelector = { (coord, _) -> coord.first },
+        valueTransform = { (_, mult) -> mult }
+    )
+        .mapValues { (_, mults) -> mults.sum() }
+        .let {
+            val empty = mutableMapOf(0 to 0, 1 to 0, 2 to 0, 3 to 0, 4 to 0)
+            it.forEach { row, mult ->
+                empty[row] = mult
+            }
+            empty
+        }
+        .mapValues { (row, multTotal) ->
+            val downWordCoords = downWordConfig.toMap()
+            multTotal + if (downWordCoords[row] != null) 2 else 0
+        }
+        .toList()
+        .sortedByDescending { it.second }
+        .map { it.first }
 }

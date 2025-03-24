@@ -1,3 +1,5 @@
+import kotlin.time.measureTimedValue
+
 /**
  * Solves Bongo
  */
@@ -31,10 +33,13 @@ fun main() {
     )
 
     val solver = Solver(config)
-    val solution = solver.solve()
-
-    println("Solution found:")
-    solution.forEachIndexed { index, word ->
-        println("Row $index: $word")
+    val (solution, time) = measureTimedValue {
+        solver.solve()
     }
+
+    println("Solution found: ")
+    printStateScore(config, solution)
+    println("Down word: ${calculateDownWordScore(config, solution)}")
+    println("Total score: ${calculateTotalScore(config, solution)}")
+    println("Took ${time.inWholeMinutes}")
 }
