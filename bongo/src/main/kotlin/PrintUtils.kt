@@ -2,31 +2,32 @@ import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
-fun printStateScore(config: BongoConfig, words: Words) {
-    listOf(0, 1, 2, 3, 4).forEach { row ->
-        words[row]
-            ?.let { word ->
-                word.forEachIndexed { col, letter ->
-                    if (row to col in config.downWordConfig) {
-                        print("($letter)")
-                    } else {
-                        print(" $letter ")
-                    }
-                }
-                repeat(5 - word.length) { print("   ") }
-                val (wordScore, happyScore) = calculateWordScore(config, word, row)
-                println(" (${wordScore + happyScore} = $wordScore + $happyScore)")
-            }
-            ?: println("")
-    }
-}
+fun logScore(config: BongoConfig, words: Words): String =
+    if (config.verbose) {
+        listOf(0, 1, 2, 3, 4).joinToString(separator = "\n") { row ->
+            val word = words[row]
+            word
+                ?.let {
+                    val letters = word.mapIndexed { col, letter ->
+                        if (row to col in config.downWordConfig) {
+                            "($letter)"
+                        } else {
+                            " $letter "
+                        }
+                    }.joinToString("")
 
-fun logScoreTerse(config: BongoConfig, words: Words): String =
+                    val (wordScore, happyScore) = calculateWordScore(config, word, row)
+                    "${letters.padEnd(15)} (${wordScore + happyScore} = $wordScore + $happyScore)"
+                }
+                ?: " -"
+        } + "\nTotal score: ${calculateTotalScore(config, words)}\n"
+    } else {
         listOf(0, 1, 2, 3, 4)
             .joinToString(
                 separator = ",",
                 postfix = " (${calculateTotalScore(config, words)})\n"
             ) { words[it]?.padEnd(5) ?: "" }
+    }
 
 fun formatDuration(duration: Duration): String {
     val minutes = duration.inWholeMinutes

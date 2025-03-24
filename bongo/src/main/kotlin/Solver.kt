@@ -36,7 +36,7 @@ class Solver(private val config: BongoConfig) {
 
     private suspend fun backtrack(state: GameState, scope: CoroutineScope) {
         if (state.currentScore >= bestScore.get()) {
-            config.solutionFile.appendText(logScoreTerse(config, state.currentWords))
+            config.solutionFile.appendText(logScore(config, state.currentWords))
             bestScore.updateAndGet { old -> maxOf(old, state.currentScore) }
             bestSolution = state.currentWords
         }
@@ -152,9 +152,8 @@ class Solver(private val config: BongoConfig) {
         return sortedRemainingLettersByPoint
             .mapIndexed { index, letter ->
                 val mult = availMults.toList().getOrNull(index) ?: 1
-                ceil(config.letterPoints[letter]!! * mult * 1.3)
+                ceil(config.letterPoints[letter]!! * mult * 1.3).toInt()
             }
-            .sum()
-            .toInt() + config.heuristicError
+            .sum() + config.heuristicError
     }
 }
