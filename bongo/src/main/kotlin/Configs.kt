@@ -70,3 +70,39 @@ val day3_23 = BongoConfig(
         'Y' to 0,  'Z' to 0,
     )
 )
+
+val day3_24 = BongoConfig(
+    multipliers = mapOf(
+        Pair(2, 0) to 3,
+        Pair(3, 0) to 2,
+        Pair(3, 3) to 2
+    ),
+    downWordConfig = listOf(
+        Pair(0, 3),
+        Pair(1, 3),
+        Pair(2, 4),
+        Pair(3, 4)
+    ),
+    availableLetters = mapOf(
+        'A' to 1, 'B' to 0, 'C' to 1,
+        'D' to 1, 'E' to 2, 'F' to 0,
+        'G' to 0, 'H' to 0, 'I' to 3,
+        'J' to 0, 'K' to 0, 'L' to 1,
+        'M' to 1, 'N' to 2, 'O' to 3,
+        'P' to 0, 'Q' to 0, 'R' to 2,
+        'S' to 2, 'T' to 2, 'U' to 2,
+        'V' to 1, 'W' to 0, 'X' to 0,
+        'Y' to 1, 'Z' to 0,
+    ),
+    letterPoints = mapOf(
+        'A' to 5, 'B' to 0, 'C' to 35,
+        'D' to 30, 'E' to 5, 'F' to 0,
+        'G' to 0, 'H' to 0, 'I' to 10,
+        'J' to 0, 'K' to 0, 'L' to 9,
+        'M' to 40, 'N' to 25, 'O' to 7,
+        'P' to 0, 'Q' to 0, 'R' to 7,
+        'S' to 5, 'T' to 9, 'U' to 15,
+        'V' to 70, 'W' to 0, 'X' to 0,
+        'Y' to 35, 'Z' to 0,
+    ),
+)

@@ -1,10 +1,13 @@
+import kotlinx.coroutines.*
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.ceil
 
 /** Mapping of row index of the grid to a word. */
 typealias Words = Map<Int, String>
 
 class Solver(private val config: BongoConfig) {
-    private var bestScore = 0
+    private var bestScore = AtomicInteger(0)
     private var bestSolution: Words? = null
 
     private data class GameState(
@@ -24,28 +27,36 @@ class Solver(private val config: BongoConfig) {
             currentScore = 0
         )
 
-        backtrack(initialState)
+        runBlocking(Dispatchers.Default) {
+            coroutineScope {
+                backtrack(initialState, this)
+            }
+        }
         return bestSolution ?: emptyMap()
     }
 
-    private fun backtrack(state: GameState) {
-        if (state.currentScore >= bestScore) {
+    private suspend fun backtrack(state: GameState, scope: CoroutineScope) {
+        if (state.currentScore >= bestScore.get()) {
             config.solutionFile.appendText(logScoreTerse(config, state.currentWords))
-            bestScore = state.currentScore
+            bestScore.updateAndGet { old -> maxOf(old, state.currentScore) }
             bestSolution = state.currentWords
         }
 
         if (state.currentWords.size == 5) return
 
         val possibleWords = getPossibleWords(state, state.wordToAdd!!)
-        possibleWords.forEach { word ->
-            val newState = placeWord(word, state, state.wordToAdd)
-
-            val maxRemainingScore = calculateMaxRemainingScore(config, newState)
-            if (newState.currentScore + maxRemainingScore > bestScore) {
-                backtrack(newState)
+        val deferredResults = possibleWords.map { word ->
+            scope.async {
+                val newState = placeWord(word, state, state.wordToAdd)
+                val maxRemainingScore = calculateMaxRemainingScore(config, newState)
+                val latestBestScore = bestScore.get()
+                if (newState.currentScore + maxRemainingScore > latestBestScore) {
+                    backtrack(newState, scope)
+                }
             }
         }
+
+        deferredResults.awaitAll()
     }
 
     private fun getPossibleWords(state: GameState, rowToInsert: Int): Set<String> {

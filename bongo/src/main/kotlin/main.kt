@@ -2,7 +2,7 @@ import kotlin.time.measureTimedValue
 
 /** Solves Bongo */
 fun main() {
-    val config = day3_23
+    val config = day3_24
 
     val solver = Solver(config)
     val (solution, time) = measureTimedValue {
