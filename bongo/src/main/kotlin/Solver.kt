@@ -17,7 +17,7 @@ class Solver(private val config: BongoConfig) {
 
     fun solve(): Words {
         val initialState = GameState(
-            currentWords = emptyMap(),
+            currentWords = config.startingWords,
             remainingLetters = config.availableLetters,
             remainingWildcards = config.availableWildcards,
             wordToAdd = config.orderToFillInWords.first(),
