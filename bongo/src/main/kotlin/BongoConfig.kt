@@ -7,7 +7,8 @@ data class BongoConfig(
     val availableLetters: Map<Char, Int>,
     val letterPoints: Map<Char, Int>,
     val availableWildcards: Int = 0, // Broken
-    val startingWords: Words = emptyMap()
+    val startingWords: Words = emptyMap(),
+    val heuristicError: Int = 0
 ) {
     init {
         require(availableLetters.values.sum() == 25) { "Need 25 letters." }

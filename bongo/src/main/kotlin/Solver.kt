@@ -1,5 +1,4 @@
 import kotlinx.coroutines.*
-import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.ceil
 
@@ -156,6 +155,6 @@ class Solver(private val config: BongoConfig) {
                 ceil(config.letterPoints[letter]!! * mult * 1.3)
             }
             .sum()
-            .toInt() + 5 // 5 possible rounding points, maybe?
+            .toInt() + config.heuristicError
     }
 }

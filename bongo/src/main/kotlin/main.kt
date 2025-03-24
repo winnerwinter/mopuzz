@@ -2,7 +2,7 @@ import kotlin.time.measureTimedValue
 
 /** Solves Bongo */
 fun main() {
-    val config = day3_24
+    val config = day3_24.copy(heuristicError = 5) // 5 possible rounding points, maybe?
 
     val solver = Solver(config)
     val (solution, time) = measureTimedValue {
