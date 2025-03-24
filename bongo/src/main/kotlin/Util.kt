@@ -1,9 +1,7 @@
 import kotlin.math.ceil
 
-fun printStateScore(config: BongoConfig, words: Map<Int, String>) {
-    val fullMap = mapOf(0 to "", 1 to "", 2 to "", 3 to "", 4 to "")
-
-    fullMap.entries.forEach { (row, _) ->
+fun printStateScore(config: BongoConfig, words: Words) {
+    listOf(0, 1, 2, 3, 4).forEach { row ->
         words[row]
             ?.let { word ->
                 word.forEachIndexed { col, letter ->
@@ -21,12 +19,19 @@ fun printStateScore(config: BongoConfig, words: Map<Int, String>) {
     }
 }
 
-fun buildDownWord(config: BongoConfig, words: Map<Int, String>): Map<Int, Char> {
-    val map = mutableMapOf(0 to ' ', 1 to ' ', 2 to ' ', 3 to ' ', 4 to ' ')
+fun logScoreTerse(config: BongoConfig, words: Words): String =
+        listOf(0, 1, 2, 3, 4)
+            .joinToString(
+                separator = ",",
+                postfix = " (${calculateTotalScore(config, words)})\n"
+            ) { words[it]?.padEnd(5) ?: "" }
+
+fun buildDownWord(config: BongoConfig, words: Words): Map<Int, Char> {
+    val downWordMap = mutableMapOf(0 to ' ', 1 to ' ', 2 to ' ', 3 to ' ', 4 to ' ')
     config.downWordConfig.forEach { (row, col) ->
-        map[row] = words[row]?.getOrNull(col) ?: ' '
+        words[row]?.getOrNull(col)?.let { downWordMap[row] = it }
     }
-    return map
+    return downWordMap
 }
 
 fun calculateWordScore(config: BongoConfig, word: String, row: Int): Pair<Int, Int> {
@@ -41,7 +46,7 @@ fun calculateWordScore(config: BongoConfig, word: String, row: Int): Pair<Int, I
     return score to happyScore
 }
 
-fun calculateDownWordScore(config: BongoConfig, words: Map<Int, String>): Int {
+fun calculateDownWordScore(config: BongoConfig, words: Words): Int {
     val downWordMap = buildDownWord(config, words)
     val downWord = downWordMap.values.joinToString("").trim()
 
@@ -61,7 +66,7 @@ fun calculateDownWordScore(config: BongoConfig, words: Map<Int, String>): Int {
     return score
 }
 
-fun calculateTotalScore(config: BongoConfig, words: Map<Int, String>): Int {
+fun calculateTotalScore(config: BongoConfig, words: Words): Int {
     val downWordScore = calculateDownWordScore(config, words)
     val wordScores = words.map { (index, word) -> calculateWordScore(config, word, index) }
     return wordScores.sumOf { (wordScore, happyScore) -> wordScore + happyScore } + downWordScore

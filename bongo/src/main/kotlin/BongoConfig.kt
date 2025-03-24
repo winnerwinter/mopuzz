@@ -1,3 +1,6 @@
+import java.io.File
+import java.io.FileOutputStream
+
 data class BongoConfig(
     val multipliers: Map<Pair<Int, Int>, Int>,
     val downWordConfig: List<Pair<Int, Int>>,
@@ -6,7 +9,12 @@ data class BongoConfig(
 ) {
     init {
         require(availableLetters.values.sum() == 25) { "Need 25 letters." }
+        File("bongosolutions.txt").also {
+            FileOutputStream(it).use { it.channel.truncate(0) }
+        }
     }
+
+    val solutionFile: File = File("bongosolutions.txt")
 
     // need to fill these in more
     val letterPoints: Map<Char, Int> = mapOf(
@@ -38,8 +46,8 @@ data class BongoConfig(
         .mapValues { (_, mults) -> mults.sum() }
         .let {
             val empty = mutableMapOf(0 to 0, 1 to 0, 2 to 0, 3 to 0, 4 to 0)
-            it.forEach { row, mult ->
-                empty[row] = mult
+            it.forEach { row, sumMult ->
+                empty[row] = sumMult
             }
             empty
         }

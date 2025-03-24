@@ -1,18 +1,21 @@
 import kotlin.math.ceil
 
+/** Mapping of row index of the grid to a word. */
+typealias Words = Map<Int, String>
+
 class Solver(private val config: BongoConfig) {
     private var bestScore = 0
-    private var bestSolution: Map<Int, String>? = null
+    private var bestSolution: Words? = null
 
     private data class GameState(
-        val currentWords: Map<Int, String>,
+        val currentWords: Words,
         val remainingLetters: Map<Char, Int>,
         val remainingWildcards: Int,
         val wordToAdd: Int?,
         val currentScore: Int
     )
 
-    fun solve(): Map<Int, String> {
+    fun solve(): Words {
         val initialState = GameState(
             currentWords = emptyMap(),
             remainingLetters = config.availableLetters,
@@ -26,12 +29,10 @@ class Solver(private val config: BongoConfig) {
     }
 
     private fun backtrack(state: GameState) {
-        val score = calculateTotalScore(config, state.currentWords)
-        if (score > bestScore) {
-            println("New best score found: $score")
-            printStateScore(config, state.currentWords)
-            bestScore = score
-            bestSolution = state.currentWords.toSortedMap()
+        if (state.currentScore >= bestScore) {
+            config.solutionFile.appendText(logScoreTerse(config, state.currentWords))
+            bestScore = state.currentScore
+            bestSolution = state.currentWords
         }
 
         if (state.currentWords.size == 5) return
