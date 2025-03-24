@@ -1,31 +1,5 @@
 import kotlin.math.ceil
 
-fun printStateScore(config: BongoConfig, words: Words) {
-    listOf(0, 1, 2, 3, 4).forEach { row ->
-        words[row]
-            ?.let { word ->
-                word.forEachIndexed { col, letter ->
-                    if (row to col in config.downWordConfig) {
-                        print("($letter)")
-                    } else {
-                        print(" $letter ")
-                    }
-                }
-                repeat(5 - word.length) { print("   ") }
-                val (wordScore, happyScore) = calculateWordScore(config, word, row)
-                println(" (${wordScore + happyScore} = $wordScore + $happyScore)")
-            }
-            ?: println("")
-    }
-}
-
-fun logScoreTerse(config: BongoConfig, words: Words): String =
-        listOf(0, 1, 2, 3, 4)
-            .joinToString(
-                separator = ",",
-                postfix = " (${calculateTotalScore(config, words)})\n"
-            ) { words[it]?.padEnd(5) ?: "" }
-
 fun buildDownWord(config: BongoConfig, words: Words): Map<Int, Char> {
     val downWordMap = mutableMapOf(0 to ' ', 1 to ' ', 2 to ' ', 3 to ' ', 4 to ' ')
     config.downWordConfig.forEach { (row, col) ->

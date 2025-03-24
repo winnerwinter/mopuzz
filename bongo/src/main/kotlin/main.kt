@@ -1,8 +1,6 @@
 import kotlin.time.measureTimedValue
 
-/**
- * Solves Bongo
- */
+/** Solves Bongo */
 fun main() {
     // Day 3/23
     val config = BongoConfig(
@@ -41,5 +39,5 @@ fun main() {
     printStateScore(config, solution)
     println("Down word: ${calculateDownWordScore(config, solution)}")
     println("Total score: ${calculateTotalScore(config, solution)}")
-    println("Took ${time.inWholeMinutes}")
+    println("Took ${formatDuration(time)}")
 }
