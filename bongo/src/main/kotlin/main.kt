@@ -3,9 +3,9 @@ import kotlin.time.measureTimedValue
 /** Solves Bongo */
 fun main() {
     val config = day3_24.copy(
-        // 5 possible rounding points, maybe?
-        heuristicError = 15,
-        verbose = true
+        // rounding points, maybe?
+        heuristicError = 25,
+        verbose = false
     )
 
     val solver = Solver(config)

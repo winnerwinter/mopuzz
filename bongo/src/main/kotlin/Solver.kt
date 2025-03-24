@@ -1,5 +1,6 @@
 import kotlinx.coroutines.*
 import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.math.ceil
 
 /** Mapping of row index of the grid to a word. */
@@ -7,7 +8,7 @@ typealias Words = Map<Int, String>
 
 class Solver(private val config: BongoConfig) {
     private var bestScore = AtomicInteger(0)
-    private var bestSolution: Words? = null
+    private var bestSolution = AtomicReference<Words>()
 
     private data class GameState(
         val currentWords: Words,
@@ -31,14 +32,14 @@ class Solver(private val config: BongoConfig) {
                 backtrack(initialState, this)
             }
         }
-        return bestSolution ?: emptyMap()
+        return bestSolution.get()
     }
 
     private suspend fun backtrack(state: GameState, scope: CoroutineScope) {
         if (state.currentScore >= bestScore.get()) {
             config.solutionFile.appendText(logScore(config, state.currentWords))
-            bestScore.updateAndGet { old -> maxOf(old, state.currentScore) }
-            bestSolution = state.currentWords
+            bestScore.updateAndGet { _ -> state.currentScore }
+            bestSolution.updateAndGet { _ -> state.currentWords }
         }
 
         if (state.currentWords.size == 5) return
@@ -48,8 +49,7 @@ class Solver(private val config: BongoConfig) {
             scope.async {
                 val newState = placeWord(word, state, state.wordToAdd)
                 val maxRemainingScore = calculateMaxRemainingScore(config, newState)
-                val latestBestScore = bestScore.get()
-                if (newState.currentScore + maxRemainingScore > latestBestScore) {
+                if (newState.currentScore + maxRemainingScore >= bestScore.get()) {
                     backtrack(newState, scope)
                 }
             }
