@@ -36,20 +36,19 @@ class Solver(private val config: BongoConfig) {
     }
 
     private suspend fun backtrack(state: GameState, scope: CoroutineScope) {
-        if (state.currentScore >= bestScore.get()) {
-            config.solutionFile.appendText(logScore(config, state.currentWords))
-            bestScore.updateAndGet { _ -> state.currentScore }
-            bestSolution.updateAndGet { _ -> state.currentWords }
-        }
-
         if (state.currentWords.size == 5) return
 
         val possibleWords = getPossibleWords(state, state.wordToAdd!!)
         val deferredResults = possibleWords.map { word ->
             scope.async {
                 val newState = placeWord(word, state, state.wordToAdd)
+                if (newState.currentScore >= bestScore.get()) {
+                    config.outputFile.appendText(logScore(config, newState.currentWords))
+                    bestScore.updateAndGet { _ -> newState.currentScore }
+                    bestSolution.updateAndGet { _ -> newState.currentWords }
+                }
                 val maxRemainingScore = calculateMaxRemainingScore(config, newState)
-                if (newState.currentScore + maxRemainingScore >= bestScore.get()) {
+                if (newState.currentScore + maxRemainingScore > bestScore.get()) {
                     backtrack(newState, scope)
                 }
             }

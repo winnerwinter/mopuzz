@@ -9,16 +9,15 @@ data class BongoConfig(
     val availableWildcards: Int = 0, // Broken
     val startingWords: Words = emptyMap(),
     val heuristicError: Int = 0,
-    val verbose: Boolean = false
+    val verbose: Boolean = false,
+    val outputFile: File
 ) {
     init {
         require(availableLetters.values.sum() == 25) { "Need 25 letters." }
-        File("bongosolutions.txt").also {
+        outputFile.also {
             FileOutputStream(it).use { it.channel.truncate(0) }
         }
     }
-
-    val solutionFile: File = File("bongosolutions.txt")
 
     val happyWords = this::class.java.getResourceAsStream("happy.txt")!!.bufferedReader()
         .readLines().toSet()
