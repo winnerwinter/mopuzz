@@ -9,7 +9,7 @@ fun main() {
         letterPoints = letterPointConfigC,
         heuristicError = 25,
         verbose = true,
-        outputFile = File("bongosolutions.txt")
+        outputFile = File("bongo/bongosolutions.txt")
     )
 
     val solver = Solver(config)

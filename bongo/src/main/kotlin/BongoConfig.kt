@@ -7,9 +7,9 @@ data class BongoConfig(
     val availableLetters: Map<Char, Int>,
     val letterPoints: Map<Char, Int>,
     val availableWildcards: Int = 0, // Broken
-    val startingWords: Words = emptyMap(),
-    val heuristicError: Int = 0,
-    val verbose: Boolean = false,
+    val startingWords: Words = emptyMap(), // Unimplemented
+    val heuristicError: Int,
+    val verbose: Boolean,
     val outputFile: File
 ) {
     init {
@@ -26,6 +26,8 @@ data class BongoConfig(
 
     // Consider only happy words as valid, non happy words probably wont be optimal
     val validWords = emptySet<String>()
+
+    val possibleDownWords = (happyWords + validWords).filter { it.length == 4 }
 
     // Calculate placement of words to get highest impact words in highest impact location first
     // i.e a row with multipliers will probably score more than one without

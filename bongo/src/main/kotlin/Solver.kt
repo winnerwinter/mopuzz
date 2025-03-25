@@ -72,7 +72,7 @@ class Solver(private val config: BongoConfig) {
                         val downWordMapSoFar = buildDownWord(config, state.currentWords).toMutableMap()
                         downWordMapSoFar[rowToInsert] = word[col]
                         val downWordSoFar = downWordMapSoFar.values.joinToString("")
-                        allWords.filter { it.length == 4 }.any {
+                        config.possibleDownWords.any {
                             it.zip(downWordSoFar).all { (a, b) -> a == b || b == ' ' }
                         }
                     } else {
