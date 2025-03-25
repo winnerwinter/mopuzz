@@ -5,7 +5,7 @@ fun main() {
     val config = day3_24.copy(
         // rounding points, maybe?
         heuristicError = 25,
-        verbose = false
+        verbose = true
     )
 
     val solver = Solver(config)

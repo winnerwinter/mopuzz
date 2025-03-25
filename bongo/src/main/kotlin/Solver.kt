@@ -138,6 +138,9 @@ class Solver(private val config: BongoConfig) {
             .toMap()
             .values
 
+        // Count the blank squares in words filled in
+        val blankSquareCount = state.currentWords.map { (_, word) -> 5 - word.count { it.isLetter() } }.sum()
+
         val sortedRemainingLettersByPoint = state.remainingLetters
             .toList()
             .flatMap { (char, count) ->
@@ -148,6 +151,7 @@ class Solver(private val config: BongoConfig) {
             .sortedByDescending { char ->
                 config.letterPoints[char]!!
             }
+            .dropLast(blankSquareCount)
 
         return sortedRemainingLettersByPoint
             .mapIndexed { index, letter ->
