@@ -9,10 +9,10 @@ fun logScore(config: BongoConfig, words: Words): String =
             word
                 ?.let {
                     val letters = word.mapIndexed { col, letter ->
-                        if (row to col in config.downWordConfig) {
-                            "($letter)"
-                        } else {
-                            " $letter "
+                        when (row to col) {
+                            in config.downWordConfig -> "($letter)"
+                            in config.multipliers.keys -> " $letter*"
+                            else -> " $letter "
                         }
                     }.joinToString("")
 
