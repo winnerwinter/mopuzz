@@ -5,8 +5,8 @@ import kotlin.time.measureTimedValue
 fun main() {
     val config = parseConfig(
         // 25 letters, 4 down word coords (1 indexed), multiplier coord mult
-        config = configs["325"]!!,
-        letterPoints = letterPointConfigC,
+        config = configs["326"]!!,
+        letterPoints = letterPointConfigD,
         heuristicError = 25,
         verbose = true,
         outputFile = File("bongo/bongosolutions.txt")
@@ -60,5 +60,18 @@ val letterPointConfigC = mapOf(
     'P' to 35, 'Q' to 0, 'R' to 7,
     'S' to 5, 'T' to 9, 'U' to 0,
     'V' to 0, 'W' to 0, 'X' to 0,
+    'Y' to 0, 'Z' to 0,
+)
+
+// 3/26
+val letterPointConfigD = mapOf(
+    'A' to 5, 'B' to 0, 'C' to 40,
+    'D' to 35, 'E' to 5, 'F' to 0,
+    'G' to 0, 'H' to 0, 'I' to 9,
+    'J' to 0, 'K' to 0, 'L' to 0,
+    'M' to 0, 'N' to 20, 'O' to 7,
+    'P' to 0, 'Q' to 0, 'R' to 0,
+    'S' to 5, 'T' to 9, 'U' to 15,
+    'V' to 80, 'W' to 0, 'X' to 0,
     'Y' to 0, 'Z' to 0,
 )
