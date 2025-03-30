@@ -13,18 +13,10 @@ data class CubeConfig(
 
     private val words = this::class.java.getResourceAsStream("words.txt")!!.bufferedReader()
         .readLines()
-        .filter { it.length > 5 }
+        .filter { it.length > 4 }
         .map { it.uppercase() }
 
-    private val bongoValid = this::class.java.getResourceAsStream("valid.txt")!!.bufferedReader()
-        .readLines()
-        .map { it.uppercase() }
-
-    private val bongoHappy = this::class.java.getResourceAsStream("happy.txt")!!.bufferedReader()
-        .readLines()
-        .map { it.uppercase() }
-
-    val validWords = (words + bongoHappy).toHashSet()
+    val validWords = (words).toHashSet()
 }
 
 fun parseConfig(config: String, outputFile: File): CubeConfig {

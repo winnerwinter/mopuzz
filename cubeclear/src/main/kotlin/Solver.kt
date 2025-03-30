@@ -1,4 +1,5 @@
-import kotlin.time.measureTimedValue
+import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.runBlocking
 
 class Solver(private val config: CubeConfig) {
     private data class GameState(
@@ -6,87 +7,94 @@ class Solver(private val config: CubeConfig) {
         val foundWordPath: List<Word>
     )
 
-    fun solve(): List<Word> {
+    fun solve() {
         val initialState = GameState(
             currentGrid = config.startingGrid,
             foundWordPath = emptyList()
         )
 
         println("Initial Cube\n${initialState.currentGrid.toPrintableString()}\n")
-
-        return solve(initialState)
+        runBlocking {
+            solve(initialState)
+                .onEach { solution ->
+                    val grids = applyWords(config.startingGrid, solution)
+                    config.outputFile.appendText("Found solution.\n")
+                    config.outputFile.appendText(printMultipleGrids(grids, solution))
+                }
+                .collect {}
+        }
     }
 
-    private fun solve(state: GameState): List<Word> {
-        // so sloww
-//        val (findPossibleWords, _) = measureTimedValue { state.findPossibleWords() }
-        val findPossibleWords = state.findPossibleWords()
-        if (findPossibleWords.isEmpty()) {
-            val states = applyWords(config.startingGrid, state.foundWordPath)
-            config.outputFile.appendText(printMultipleGrids(states, state.foundWordPath))
+    private fun solve(state: GameState): Flow<List<Word>> =
+        flow {
+            state
+                .findPossibleWords()
+                .onEach { word ->
+                    val newGameState = state.updateGameState(word)
+                    val states = applyWords(config.startingGrid, newGameState.foundWordPath)
+                    println(printMultipleGrids(states, newGameState.foundWordPath))
+                    when {
+                        newGameState.isClear() -> emit(newGameState.foundWordPath)
+                        newGameState.containsIslands() -> {}
+                        newGameState.foundWordPath.size < 3 -> {
+                            solve(newGameState).onEach { emit(it) }.collect { }
+                        }
+                        else -> {}
+                    }
+                }
+                .collect {}
         }
 
-        val solutions = findPossibleWords
-            .flatMap { word ->
-                val newGameState = state.updateGameState(word)
-                if (newGameState.isClear()) {
-                    return newGameState.foundWordPath
-                } else {
-                    // the solution probably only has 3 words
-                    if (newGameState.foundWordPath.size >= 3) {
-                        val states = applyWords(config.startingGrid, newGameState.foundWordPath)
-                        config.outputFile.appendText(printMultipleGrids(states, newGameState.foundWordPath))
-                        emptyList()
-                    } else {
-                        solve(newGameState)
+    private fun GameState.findPossibleWords(): Flow<Word> =
+        flow {
+            val visited = Array(6) { BooleanArray(6) }
+
+            suspend fun dfs(x: Int, y: Int, path: MutableList<Letter>) {
+                val wordSoFar = path.joinToString(separator = "") { it.value.toString() }
+                // no words found
+                if (config.validWords.none { it.startsWith(wordSoFar) }) {
+                    for (i in path.size - 1 downTo 5) {
+                        val subword = path.subList(0, i)
+                        val subwordString = subword.joinToString(separator = "") { it.value.toString() }
+                        if (subwordString in config.validWords) {
+                            emit(Word(subword.toList()))
+                        }
+                    }
+                    return
+                }
+
+                // solutions tend to have 5-6 letters
+                if (wordSoFar.length > 6) {
+                    return
+                }
+
+                for ((dx, dy) in listOf(0 to 1, 1 to 0, 0 to -1, -1 to 0, 1 to 1, 1 to -1, -1 to 1, -1 to -1)) {
+                    val nx = x + dx
+                    val ny = y + dy
+
+                    if (nx in 0..5 && ny in 0..5 && !visited[nx][ny] && currentGrid[nx][ny] != ' ') {
+                        val newLetter = Letter(currentGrid[nx][ny], nx to ny)
+                        visited[nx][ny] = true
+                        path.add(newLetter)
+                        dfs(nx, ny, path)
+                        path.removeAt(path.lastIndex)
+                        visited[nx][ny] = false
                     }
                 }
             }
-        return solutions.toList()
-    }
 
-    private fun GameState.findPossibleWords(): List<Word> {
-        val foundWords = mutableListOf<Word>()
-        val visited = Array(6) { BooleanArray(6) }
-
-        fun dfs(x: Int, y: Int, path: MutableList<Letter>, wordSoFar: String) {
-            if (wordSoFar in config.validWords) {
-                foundWords.add(Word(path.toList()))
-            }
-
-            if (config.validWords.none { it.startsWith(wordSoFar) }) {
-                return
-            }
-
-            for ((dx, dy) in listOf(0 to 1, 1 to 0, 0 to -1, -1 to 0, 1 to 1, 1 to -1, -1 to 1, -1 to -1)) {
-                val nx = x + dx
-                val ny = y + dy
-
-                if (nx in 0..5 && ny in 0..5 && !visited[nx][ny] && currentGrid[nx][ny] != ' ') {
-                    val newLetter = Letter(currentGrid[nx][ny], nx to ny)
-                    visited[nx][ny] = true
-                    path.add(newLetter)
-                    dfs(nx, ny, path, wordSoFar + newLetter.value)
-                    path.removeAt(path.lastIndex)
-                    visited[nx][ny] = false
+            val cols = listOf(0,1,2,3,4,5)
+            cols.shuffled().forEach { x ->
+                cols.shuffled().forEach { y ->
+                    if (currentGrid[x][y] != ' ') {
+                        val startLetter = Letter(currentGrid[x][y], x to y)
+                        visited[x][y] = true
+                        dfs(x, y, mutableListOf(startLetter))
+                        visited[x][y] = false
+                    }
                 }
             }
         }
-
-        for (x in 0 until 6) {
-            for (y in 0 until 6) {
-                if (currentGrid[x][y] != ' ') {
-                    val startLetter = Letter(currentGrid[x][y], x to y)
-                    visited[x][y] = true
-                    dfs(x, y, mutableListOf(startLetter), startLetter.value.toString())
-                    visited[x][y] = false
-                }
-            }
-        }
-
-        return foundWords
-            .sortedByDescending { it.letters.size } // Prioritize longer words
-    }
 
     private fun GameState.updateGameState(word: Word): GameState {
         val newGrid = currentGrid.map { it.copyOf() } // Deep copy of the grid
@@ -122,10 +130,33 @@ class Solver(private val config: CubeConfig) {
 
 
     private fun GameState.isClear(): Boolean {
-        return currentGrid.all { col -> col.all { it.toString() == "" } }
+        return currentGrid.all { col -> String(col).isBlank() }
     }
 
-    fun applyWords(initialGrid: Grid, words: List<Word>): List<Grid> {
+    private fun GameState.containsIslands(): Boolean {
+        val emptyColumns = mutableSetOf<Int>()
+
+        // Identify empty columns
+        for (idx in 1 until 5) {
+            if (String(currentGrid[idx]).isBlank() ) {
+                emptyColumns.add(idx)
+            }
+        }
+
+        if (emptyColumns.isEmpty()) return false // No empty columns → No islands
+
+        // Check if the empty column splits the grid into two separate regions
+        val leftHasLetters = (0 until emptyColumns.first()).any { idx ->
+            String(currentGrid[idx]).isNotBlank()
+        }
+        val rightHasLetters = (emptyColumns.last() + 1 until 6).any { idx ->
+            String(currentGrid[idx]).isNotBlank()
+        }
+
+        return leftHasLetters && rightHasLetters // True if letters are on both sides of an empty column
+    }
+
+    private fun applyWords(initialGrid: Grid, words: List<Word>): List<Grid> {
         val gameStates = mutableListOf(initialGrid) // Store intermediate board states
         var currentState = GameState(initialGrid.map { it.copyOf() }, emptyList()) // Start with a deep copy
 

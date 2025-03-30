@@ -14634,9 +14634,7 @@ antralgia
 antre
 antrectomy
 antres
-antrin
 antritis
-antrocele
 antronasal
 antrophore
 antrophose
@@ -29766,16 +29764,7 @@ bylawman
 bylaws
 erry
 erries
-i
-y
-ie
-ies
-o
-oa
-oas
-oes
 oquet
-os
 bilch
 bilcock
 bildar
@@ -29812,9 +29801,6 @@ bilify
 bilification
 bilifuscin
 bilihumin
-i
-ing
-is
 biliment
 bylina
 byline
@@ -85239,7 +85225,6 @@ earwigs
 earwitness
 earworm
 earworms
-earwort
 ease
 eased
 easeful
@@ -111559,6 +111544,7 @@ gemless
 gemlich
 gemlike
 gemmaceous
+gemma
 gemmae
 gemman
 gemmary
@@ -122246,7 +122232,6 @@ heils
 heimin
 heimish
 heinies
-heynne
 heinous
 heinously
 heinousness
@@ -122296,7 +122281,6 @@ hektometer
 hektostere
 helas
 helbeh
-helco
 helcoid
 helcology
 helcoplasty
@@ -122655,7 +122639,6 @@ hemapophyseal
 hemapophysial
 hemapophysis
 hemarthrosis
-hemase
 hemaspectroscope
 hemastatics
 hematachometer
@@ -143145,7 +143128,6 @@ yores
 yoretime
 yorkers
 yorlin
-iortn
 iotacism
 yotacism
 iotacisms
@@ -151821,7 +151803,6 @@ lansat
 lanseh
 lansfordite
 lansknecht
-lanson
 lansquenet
 lant
 lantaca
@@ -158953,7 +158934,6 @@ lutelet
 lutemaker
 lutemaking
 lutenists
-luteo
 luteocobaltic
 luteofulvous
 luteofuscescent
@@ -190701,7 +190681,6 @@ odometrical
 odometries
 odonate
 odonates
-odont
 odontagra
 odontalgia
 odontalgic
@@ -192055,7 +192034,6 @@ onymous
 oniomania
 oniomaniac
 onion
-onionet
 oniony
 onionized
 onionlike
@@ -303812,7 +303790,6 @@ turgoid
 turgor
 turgors
 turicata
-turio
 turion
 turioniferous
 turista
