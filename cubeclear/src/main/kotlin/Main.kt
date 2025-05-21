@@ -1,10 +1,9 @@
 import java.io.File
 import kotlin.time.measureTimedValue
 
-fun main() {
+fun main(vararg args: String) {
     val config = parseConfig(
-        // 3/29
-        config = "RHUDSEOTAREEMEANBFGTNIVCUFIUHDISPHHG",
+        config = args.getOrNull(0) ?: error("Missing config."),
         outputFile = File("cubeclear/foundPaths.txt")
     )
 

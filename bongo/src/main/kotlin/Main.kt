@@ -2,11 +2,9 @@ import java.io.File
 import kotlin.time.measureTimedValue
 
 /** Solves Bongo */
-fun main() {
+fun main(vararg args: String) {
     val config = parseConfig(
-        // 25 letters, 4 down word coords (1 indexed), multiplier coord mult
-        config = configs["326"]!!,
-        letterPoints = letterPointConfigD,
+        config = args.getOrNull(0) ?: error("Missing config."),
         heuristicError = 25,
         verbose = true,
         outputFile = File("bongo/bongosolutions.txt")

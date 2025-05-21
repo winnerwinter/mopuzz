@@ -22,7 +22,7 @@ data class BongoConfig(
     val happyWords = this::class.java.getResourceAsStream("happy.txt")!!.bufferedReader()
         .readLines().toSet()
         // Look at highest scoring words first
-        .sortedByDescending { it.sumOf { letterPoints[it]!! } }
+        .sortedByDescending { it.sumOf { letterPoints[it] ?: 0 } }
 
     // Consider only happy words as valid, non happy words probably wont be optimal
     val validWords = emptySet<String>()
