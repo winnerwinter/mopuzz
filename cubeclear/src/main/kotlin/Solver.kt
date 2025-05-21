@@ -1,5 +1,6 @@
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.runBlocking
+import java.util.Random
 
 class Solver(private val config: CubeConfig) {
     private data class GameState(
@@ -36,9 +37,7 @@ class Solver(private val config: CubeConfig) {
                     when {
                         newGameState.isClear() -> emit(newGameState.foundWordPath)
                         newGameState.containsIslands() -> {}
-                        newGameState.foundWordPath.size < 3 -> {
-                            solve(newGameState).onEach { emit(it) }.collect { }
-                        }
+                        newGameState.foundWordPath.size < 3 -> solve(newGameState).onEach { emit(it) }.collect { }
                         else -> {}
                     }
                 }
@@ -83,15 +82,15 @@ class Solver(private val config: CubeConfig) {
                 }
             }
 
-            val cols = listOf(0,1,2,3,4,5)
-            cols.shuffled().forEach { x ->
-                cols.shuffled().forEach { y ->
-                    if (currentGrid[x][y] != ' ') {
-                        val startLetter = Letter(currentGrid[x][y], x to y)
-                        visited[x][y] = true
-                        dfs(x, y, mutableListOf(startLetter))
-                        visited[x][y] = false
-                    }
+            val rng = Random()
+            while (true) {
+                val x = rng.nextInt(0, 6)
+                val y = rng.nextInt(0, 6)
+                if (currentGrid[x][y] != ' ') {
+                    val startLetter = Letter(currentGrid[x][y], x to y)
+                    visited[x][y] = true
+                    dfs(x, y, mutableListOf(startLetter))
+                    visited[x][y] = false
                 }
             }
         }

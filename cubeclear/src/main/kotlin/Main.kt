@@ -4,7 +4,7 @@ import kotlin.time.measureTimedValue
 fun main() {
     val config = parseConfig(
         // 3/29
-        config = "REENDRAULSTHOWEFRARIPNKCGITULCFNHEOD",
+        config = "RHUDSEOTAREEMEANBFGTNIVCUFIUHDISPHHG",
         outputFile = File("cubeclear/foundPaths.txt")
     )
 
