@@ -1,4 +1,3 @@
-import java.io.File
 import kotlin.time.measureTimedValue
 
 fun main(vararg args: String) {
@@ -11,5 +10,5 @@ fun main(vararg args: String) {
         solver.solve()
     }
 
-    println("Took ${(time)}")
+    println("Took ${formatDuration(time)}")
 }
