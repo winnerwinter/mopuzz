@@ -43,7 +43,7 @@ class Solver(private val config: BongoConfig) {
             scope.async {
                 val newState = placeWord(word, state, state.wordToAdd)
                 if (newState.currentScore >= bestScore.get()) {
-                    config.outputFile.appendText(logScore(config, newState.currentWords))
+                    println(logScore(config, newState.currentWords))
                     bestScore.updateAndGet { _ -> newState.currentScore }
                     bestSolution.updateAndGet { _ -> newState.currentWords }
                 }

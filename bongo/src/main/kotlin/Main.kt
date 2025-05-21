@@ -3,6 +3,10 @@ import kotlin.time.measureTimedValue
 
 /** Solves Bongo */
 fun main(vararg args: String) {
+    // Example config
+    // Letters available | down word 1 indexed | coord and mult value | map of letters to points
+    // Day 5/20
+    // "VKKGGGHNNIIITTTRAAAAEEESS|14243445|112522553|V70K50G45H40N20I10T10R7A5E5S5"
     val config = parseConfig(
         config = args.getOrNull(0) ?: error("Missing config."),
         heuristicError = 25,
