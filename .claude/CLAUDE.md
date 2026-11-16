@@ -58,7 +58,7 @@ rule assumptions rather than silently baking them in.
   `origin/main`. The owner sees themselves as the author pushing to mainline, not someone asking for a merge.
 
 - **Never add `Co-Authored-By: Claude ...` (or any AI attribution trailer) to commit messages or PR descriptions.**
-  AI involvement is described once in the README ("How this was built") instead.
+- Keep the README to how things work now: no notes about AI involvement and no plans or future intentions.
 
 ## Git state notes
 

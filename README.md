@@ -46,13 +46,6 @@ starting at the bottom-left and reading upward.
 
 Solutions are saved to `cubeclear/foundPaths.txt`. The search runs until you stop it with Ctrl-C.
 
-## How this was built
-
-I wrote most of the solver logic myself, with a lot of help from AI tools along the way. I'm now revisiting the
-solvers with Claude Code, which wrote the `./solve` runner, keeps the notes in `.claude/` (game rules, config
-formats, known issues), and reviews and helps rework the solvers. Commits don't carry AI attribution lines; this
-section covers it.
-
 ## Word lists
 
 Found in `common/resources/`:
