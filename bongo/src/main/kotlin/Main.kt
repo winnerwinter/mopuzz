@@ -1,79 +1,64 @@
-import java.io.File
 import kotlin.time.measureTimedValue
 
-/** Solves Bongo */
+/**
+ * Bongo solver. Usage: ./solve bongo "LETTERS|BONUS|MULTIPLIERS|POINTS"   (or `./solve bongo --check` to self-test)
+ * See README.md for how to read the input off the game screen.
+ */
 fun main(vararg args: String) {
-    // Example config
-    // Letters available | down word 1 indexed | coord and mult value | map of letters to points
-    // Day 5/20
-    // "VKKGGGHNNIIITTTRAAAAEEESS|14243445|112522553|V70K50G45H40N20I10T10R7A5E5S5"
-    val config = parseConfig(
-        config = args.getOrNull(0) ?: error("Missing config."),
-        heuristicError = 25,
-        verbose = true,
-        outputFile = File("bongo/bongosolutions.txt")
-    )
+    if (args.getOrNull(0) == "--check") return runChecks()
+    val puzzle = parsePuzzle(args.getOrNull(0) ?: error("Missing puzzle. Usage: ./solve bongo \"LETTERS|BONUS|MULTIPLIERS|POINTS\""))
+    val words = Words.load()
+    if (puzzle.tileCount() != 26) println("Note: ${puzzle.tileCount()} tiles (usually 25 letters + 1 wildcard).\n")
 
-    val solver = Solver(config)
-    val (solution, time) = measureTimedValue {
-        solver.solve()
+    // Hidden check: `--exhaustive` as a second argument disables pruning (only practical for small racks).
+    val solver = Solver(puzzle, words, prune = args.getOrNull(1) != "--exhaustive")
+    val (solution, time) = measureTimedValue { solver.solve() }
+    if (solution == null) {
+        println("No board found.")
+        return
     }
 
-    println("Solution found: ")
-    print(logScore(config, solution))
-    println("Down word: ${calculateDownWordScore(config, solution)}")
-    println("Total score: ${calculateTotalScore(config, solution)}")
+    val board = solution.toBoard()
+    val check = scoreBoard(puzzle, words, board)
+    println(render(puzzle, board, check))
+    if (check.total != solution.score) {
+        println("WARNING: solver says ${solution.score} but re-scoring the board gives ${check.total}.")
+    }
+    with(solver.stats) {
+        println("Searched $nodes positions over $bonusWordsTried bonus words ($bonusWordsSkipped ruled out early, $placements row placements).")
+    }
     println("Took ${formatDuration(time)}")
 }
 
-// val i found this on 3/23
-val letterPointConfigA = mapOf(
-    'A' to 5,  'B' to 50, 'C' to 40,
-    'D' to 30, 'E' to 5,  'F' to 0,
-    'G' to 0,  'H' to 0,  'I' to 0,
-    'J' to 0,  'K' to 55, 'L' to 9,
-    'M' to 35, 'N' to 25, 'O' to 7,
-    'P' to 0,  'Q' to 0,  'R' to 7,
-    'S' to 5,  'T' to 10, 'U' to 15,
-    'V' to 70, 'W' to 0,  'X' to 0,
-    'Y' to 0,  'Z' to 0,
-)
-
-// i found this on 3/24
-val letterPointConfigB = mapOf(
-    'A' to 5, 'B' to 0, 'C' to 35,
-    'D' to 30, 'E' to 5, 'F' to 0,
-    'G' to 0, 'H' to 0, 'I' to 10,
-    'J' to 0, 'K' to 0, 'L' to 9,
-    'M' to 40, 'N' to 25, 'O' to 7,
-    'P' to 0, 'Q' to 0, 'R' to 7,
-    'S' to 5, 'T' to 9, 'U' to 15,
-    'V' to 70, 'W' to 0, 'X' to 0,
-    'Y' to 35, 'Z' to 0,
-)
-
-// 3/25
-val letterPointConfigC = mapOf(
-    'A' to 5, 'B' to 40, 'C' to 40,
-    'D' to 0, 'E' to 5, 'F' to 0,
-    'G' to 45, 'H' to 0, 'I' to 10,
-    'J' to 0, 'K' to 0, 'L' to 9,
-    'M' to 0, 'N' to 20, 'O' to 7,
-    'P' to 35, 'Q' to 0, 'R' to 7,
-    'S' to 5, 'T' to 9, 'U' to 0,
-    'V' to 0, 'W' to 0, 'X' to 0,
-    'Y' to 0, 'Z' to 0,
-)
-
-// 3/26
-val letterPointConfigD = mapOf(
-    'A' to 5, 'B' to 0, 'C' to 40,
-    'D' to 35, 'E' to 5, 'F' to 0,
-    'G' to 0, 'H' to 0, 'I' to 9,
-    'J' to 0, 'K' to 0, 'L' to 0,
-    'M' to 0, 'N' to 20, 'O' to 7,
-    'P' to 0, 'Q' to 0, 'R' to 0,
-    'S' to 5, 'T' to 9, 'U' to 15,
-    'V' to 80, 'W' to 0, 'X' to 0,
-    'Y' to 0, 'Z' to 0,
-)
+private fun render(puzzle: Puzzle, board: Board, score: BoardScore): String = buildString {
+    val bonusCells = puzzle.bonusCells.toSet()
+    for (r in 0 until SIZE) {
+        val cells = (0 until SIZE).joinToString(" ") { c ->
+            val ch = board.tiles[r][c]
+            val letter = when {
+                ch == ' ' -> '·'
+                Cell(r, c) in board.wild -> ch.lowercaseChar()
+                else -> ch
+            }
+            val core = if (Cell(r, c) in bonusCells) "[$letter]" else " $letter "
+            val m = puzzle.mult(r, c)
+            core + if (m > 1) "×$m" else "  "
+        }
+        val rs = score.rows[r]
+        val detail = when {
+            rs.word == null -> "-"
+            rs.happyBonus > 0 -> "${rs.word.padEnd(5)}  ${rs.total} (${rs.base} + ${rs.happyBonus} happy)"
+            else -> "${rs.word.padEnd(5)}  ${rs.total}"
+        }
+        appendLine("  $cells    $detail")
+    }
+    appendLine()
+    val bonus = when {
+        score.bonusWord == null -> "none"
+        score.bonusHappy > 0 -> "${score.bonusWord}  ${score.bonusTotal} (${score.bonusBase} + ${score.bonusHappy} happy)"
+        else -> "${score.bonusWord}  ${score.bonusTotal}"
+    }
+    appendLine("  Bonus word: $bonus")
+    appendLine("  Total: ${score.total}")
+    appendLine("  [x] bonus cell   ×n multiplier   lowercase = wildcard")
+}
