@@ -1,0 +1,47 @@
+#!/usr/bin/env bash
+# Build (if needed) and run a puzzle solver from the command line.
+#   ./solve <puzzle> "<config>"     e.g.  ./solve wordbind ESCORTONESAD
+# Compiled classes go to out/cli/ and are rebuilt only when sources change.
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")" && pwd)"
+cd "$ROOT"
+
+usage() {
+  echo "usage: ./solve <puzzle> \"<config>\"" >&2
+  echo "puzzles: $(ls -d */src 2>/dev/null | cut -d/ -f1 | grep -v '^common$' | tr '\n' ' ')" >&2
+  exit 1
+}
+[[ $# -ge 1 ]] || usage
+PUZZLE="$1"; shift
+[[ -d "$PUZZLE/src" && "$PUZZLE" != common ]] || { echo "unknown puzzle: $PUZZLE" >&2; usage; }
+
+# Kotlin compiler: $KOTLINC, then PATH, then the copy bundled with IntelliJ.
+KOTLINC="${KOTLINC:-$(command -v kotlinc || true)}"
+if [[ -z "$KOTLINC" ]]; then
+  KOTLINC="$(ls -d /Applications/IntelliJ*.app/Contents/plugins/Kotlin/kotlinc/bin/kotlinc 2>/dev/null | head -1 || true)"
+fi
+[[ -x "$KOTLINC" ]] || { echo "kotlinc not found: install Kotlin or set KOTLINC=/path/to/kotlinc" >&2; exit 1; }
+KLIB="$(cd "$(dirname "$KOTLINC")/../lib" && pwd)"
+LIBS="$KLIB/kotlin-stdlib.jar:$KLIB/kotlinx-coroutines-core-jvm.jar"
+
+# Sources live in either <module>/src/main/kotlin or <module>/src.
+srcdir() { [[ -d "$1/src/main/kotlin" ]] && echo "$1/src/main/kotlin" || echo "$1/src"; }
+
+build() { # build <module> <extra classpath>
+  local mod="$1" cp="$2" src out stamp
+  src="$(srcdir "$mod")"; out="out/cli/$mod"; stamp="$out/.stamp"
+  if [[ ! -f "$stamp" || -n "$(find "$src" -name '*.kt' -newer "$stamp" | head -1)" \
+        || ( "$mod" != common && "out/cli/common/.stamp" -nt "$stamp" ) ]]; then
+    echo "compiling $mod..." >&2
+    rm -rf "$out" && mkdir -p "$out"
+    "$KOTLINC" -nowarn -cp "$cp" -d "$out" "$src" 2>&1 | grep -v '^warning' >&2 || true
+    [[ -n "$(ls "$out"/*.class 2>/dev/null)" ]] || { echo "compile failed: $mod" >&2; exit 1; }
+    touch "$stamp"
+  fi
+}
+
+build common "$LIBS"
+build "$PUZZLE" "out/cli/common:$LIBS"
+
+exec java -cp "out/cli/$PUZZLE:out/cli/common:common/resources:$LIBS" MainKt "$@"

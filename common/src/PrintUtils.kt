@@ -1,3 +1,5 @@
+@file:JvmName("CommonUtils")
+
 import kotlin.time.Duration
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
