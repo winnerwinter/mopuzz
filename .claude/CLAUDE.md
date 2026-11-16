@@ -54,6 +54,9 @@ rule assumptions rather than silently baking them in.
 
 ## Commits
 
+- **Work directly on `main`.** No feature branches and no pull requests: commit to `main` and push to
+  `origin/main`. The owner sees themselves as the author pushing to mainline, not someone asking for a merge.
+
 - **Never add `Co-Authored-By: Claude ...` (or any AI attribution trailer) to commit messages or PR descriptions.**
   AI involvement is described once in the README ("How this was built") instead.
 
