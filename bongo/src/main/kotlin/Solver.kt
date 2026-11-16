@@ -48,6 +48,7 @@ private const val WILD = 26
 /** [prune] = false turns off every bound and tries everything: slow, only for checking the pruning on small racks. */
 class Solver(private val puzzle: Puzzle, private val words: Words, private val prune: Boolean = true) {
     val stats = SearchStats()
+    private val debug = System.getenv("BONGO_DEBUG") != null
 
     private val rem = puzzle.letterCounts.copyOf(27).also { it[WILD] = puzzle.wildcards }
     private val price = IntArray(27)
@@ -70,7 +71,8 @@ class Solver(private val puzzle: Puzzle, private val words: Words, private val p
         val all = plain.flatten() + byLetter.flatten().flatten()
         stats.placements = all.size
 
-        tunePrices(rows.indices.map { r -> plain[r] + byLetter[r].flatten() })
+        val globalLambda = tunePrices(rows.indices.map { r -> plain[r] + byLetter[r].flatten() }, DoubleArray(27), 400)
+        setPrices(globalLambda)
         for (p in all) p.worth = worthOf(p)
         val byWorth = compareByDescending<Placement> { it.worth }
         val plainSorted = plain.map { it.sortedWith(byWorth) }
@@ -93,11 +95,37 @@ class Solver(private val puzzle: Puzzle, private val words: Words, private val p
             scenarios += Scenario(b, lists, bonusMax, lists.sumOf { it.first().worth } + rackValue + bonusMax * SCALE)
         }
 
-        for (s in scenarios.sortedByDescending { it.bound }) {
-            if (prune && s.bound <= best * SCALE) { stats.bonusWordsSkipped++; continue }
-            stats.bonusWordsTried++
-            search(s.bonusWord, s.lists, s.bonusMax)
+        if (debug) {
+            System.err.println("prices=" + (0..WILD).filter { price[it] > 0 }.joinToString { "${if (it == WILD) '*' else 'A' + it}:${price[it] / SCALE}" })
+            System.err.println("top bounds: " + scenarios.sortedByDescending { it.bound }.take(8).joinToString { "${it.bonusWord}=${it.bound / SCALE}" } + " count=${scenarios.size}")
         }
+        val ordered = scenarios.sortedByDescending { it.bound }
+        val tuned = HashMap<Scenario, DoubleArray>()
+
+        /** Searches one bonus word. With a [nodeBudget] it gives up early; that pass only hunts for a good board. */
+        fun run(s: Scenario, nodeBudget: Long): Boolean {
+            if (prune && s.bound <= best * SCALE) return false
+            var lists = s.lists
+            if (prune) {
+                // Re-tune the prices for this bonus word: its pinned letters change which tiles are scarce.
+                setPrices(tuned.getOrPut(s) { tunePrices(lists, globalLambda, 80) })
+                for (list in lists) for (p in list) p.worth = worthOf(p)
+                lists = lists.map { it.sortedWith(byWorth) }
+                val bound = lists.sumOf { it.first().worth } + (0..WILD).sumOf { price[it] * rem[it] } + s.bonusMax * SCALE
+                if (bound <= best * SCALE) return false
+            }
+            val before = stats.nodes
+            val t0 = System.nanoTime()
+            search(s.bonusWord, lists, s.bonusMax, nodeBudget)
+            if (debug && nodeBudget == Long.MAX_VALUE) System.err.println("bonus=${s.bonusWord} bound=${s.bound / SCALE} best=$best nodes=${stats.nodes - before} ms=${(System.nanoTime() - t0) / 1_000_000}")
+            return true
+        }
+
+        // Pass 1: a short look at the most promising bonus words, to find a strong board early.
+        if (prune) for (s in ordered.take(400)) run(s, nodeBudget = 2_000)
+        if (debug) System.err.println("after quick pass: best=$best nodes=${stats.nodes}")
+        // Pass 2: the full search. A strong board from pass 1 lets most bonus words be ruled out immediately.
+        for (s in ordered) if (run(s, Long.MAX_VALUE)) stats.bonusWordsTried++ else stats.bonusWordsSkipped++
         val placements = bestPlacements ?: return null
         return Solution(placements, bestBonusWord, best)
     }
@@ -115,13 +143,13 @@ class Solver(private val puzzle: Puzzle, private val words: Words, private val p
      * Subgradient descent on the bound: if the rows' favourite placements together want more of a tile than the
      * rack has, raise its price; if they leave it unused, lower it (never below 0).
      */
-    private fun tunePrices(rows: List<List<Placement>>) {
-        val lambda = DoubleArray(27)
+    private fun tunePrices(rows: List<List<Placement>>, start: DoubleArray, iterations: Int): DoubleArray {
+        val lambda = start.copyOf()
         var bestBound = Double.MAX_VALUE
-        val bestLambda = DoubleArray(27)
+        val bestLambda = start.copyOf()
         var theta = 2.0
         var stale = 0
-        repeat(400) {
+        repeat(iterations) {
             val used = IntArray(27)
             var bound = (0..WILD).sumOf { lambda[it] * rem[it] }
             for (list in rows) {
@@ -141,71 +169,87 @@ class Solver(private val puzzle: Puzzle, private val words: Words, private val p
                 bestBound = bound
                 lambda.copyInto(bestLambda)
                 stale = 0
-            } else if (++stale >= 15) {
+            } else if (++stale >= 8) {
                 theta /= 2
                 stale = 0
             }
             val norm = (0..WILD).sumOf { (used[it] - rem[it]).let { g -> g * g } }
             if (norm == 0) return@repeat
-            val step = theta * (bound - 0.9 * bestBound) / norm
+            // Aim a little below the best bound so far, or at the best real board once that is close.
+            val aim = max(0.95 * bestBound, best.toDouble())
+            val step = theta * (bound - aim) / norm
             for (x in 0..WILD) lambda[x] = max(0.0, lambda[x] + step * (used[x] - rem[x]))
         }
-        for (x in 0..WILD) price[x] = Math.round(bestLambda[x] * SCALE).toInt()
+        return bestLambda
+    }
+
+    private fun setPrices(lambda: DoubleArray) {
+        for (x in 0..WILD) price[x] = Math.round(lambda[x] * SCALE).toInt()
     }
 
     // ---- search for one bonus word -------------------------------------------------------------------------
 
-    private lateinit var lists: List<List<Placement>>
-    private lateinit var order: IntArray
-    private lateinit var suffixWorth: IntArray
     private var bonusWord: String? = null
     private var bonusMaxScaled = 0
+    private var nodeLimit = Long.MAX_VALUE
+    private lateinit var order: IntArray
     private val chosen = arrayOfNulls<Placement>(SIZE)
 
-    private fun search(bonusWord: String?, lists: List<List<Placement>>, bonusMax: Int) {
-        this.lists = lists
+    private fun search(bonusWord: String?, lists: List<List<Placement>>, bonusMax: Int, nodeBudget: Long) {
         this.bonusWord = bonusWord
         this.bonusMaxScaled = bonusMax * SCALE
+        this.nodeLimit = if (nodeBudget == Long.MAX_VALUE) Long.MAX_VALUE else stats.nodes + nodeBudget
         // Rows with the fewest options first: they constrain the search the most.
         order = (0 until SIZE).sortedBy { lists[it].size }.toIntArray()
-        suffixWorth = IntArray(SIZE + 1)
-        for (d in SIZE - 1 downTo 0) suffixWorth[d] = suffixWorth[d + 1] + lists[order[d]].first().worth
-        dfs(0, 0, 0)
+        dfs(0, 0, 0, Array(SIZE) { lists[order[it]] })
     }
 
-    /** [score] is the exact row total so far; [capped] is the same minus bonus points lost to a wildcard on a bonus cell. */
-    private fun dfs(depth: Int, score: Int, capped: Int) {
-        stats.nodes++
+    /**
+     * [score] is the exact row total so far; [capped] is the same minus bonus points lost to a wildcard on a bonus
+     * cell. [options] holds, per depth, the placements that still fitted the rack at the parent, best worth first.
+     */
+    private fun dfs(depth: Int, score: Int, capped: Int, options: Array<List<Placement>>) {
+        if (++stats.nodes > nodeLimit) return
         if (depth == SIZE) {
             val total = score + exactBonus()
             if (total > best) {
+                if (debug) System.err.println("  improved to $total with ${chosen.map { it!!.word }} bonus=$bonusWord nodes=${stats.nodes}")
                 best = total
                 bestPlacements = chosen.map { it!! }
                 bestBonusWord = bonusWord
             }
             return
         }
+        // Narrow the later rows to what still fits the tiles left. Their best worths give the bound.
+        val mine = if (depth == 0 || !prune) options
+        else Array(SIZE) { d -> if (d <= depth) options[d] else options[d].filter { fits(it) } }
+        var later = 0
+        for (d in depth + 1 until SIZE) later += (mine[d].firstOrNull() ?: return).worth
+
         val row = order[depth]
         val rackValue = (0..WILD).sumOf { price[it] * rem[it] }
         // Bound for the whole board = points already banked + price of the tiles still on the rack
         // + best worth of each remaining row (+ the bonus word at full value).
         val fixed = capped * SCALE + rackValue + bonusMaxScaled
-        for (p in lists[row]) {
+        for (p in mine[depth]) {
             // Sorted by worth, so once this bound can't win, nothing later in the list can either.
-            if (prune && fixed + p.worth + suffixWorth[depth + 1] <= best * SCALE) break
+            if (prune && fixed + p.worth + later <= best * SCALE) break
             if (!take(p)) continue
             chosen[row] = p
-            if (!prune || fixed + p.worth + remainingWorth(depth + 1) > best * SCALE) dfs(depth + 1, score + p.rowScore, capped + p.rowScore - p.bonusLoss)
+            if (!prune || fixed + p.worth + remainingWorth(mine, depth + 1) > best * SCALE) {
+                dfs(depth + 1, score + p.rowScore, capped + p.rowScore - p.bonusLoss, mine)
+            }
             release(p)
+            if (stats.nodes > nodeLimit) break
         }
         chosen[row] = null
     }
 
     /** Best worth each remaining row could still get on its own with the tiles left. */
-    private fun remainingWorth(depth: Int): Int {
+    private fun remainingWorth(options: Array<List<Placement>>, depth: Int): Int {
         var sum = 0
         for (d in depth until SIZE) {
-            val p = lists[order[d]].firstOrNull { fits(it) } ?: return Int.MIN_VALUE / 2
+            val p = options[d].firstOrNull { fits(it) } ?: return Int.MIN_VALUE / 2
             sum += p.worth
         }
         return sum

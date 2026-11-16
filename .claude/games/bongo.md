@@ -44,9 +44,17 @@ Exact branch and bound, single-threaded:
    tuned once by subgradient descent (`tunePrices`). This is what makes pruning effective, since rows compete
    for the same valuable tiles. Prices are integers in 1/64 point so bound arithmetic is exact.
 3. **Bonus word first**: each candidate bonus word ("scenario") pins a letter per bonus row. Scenarios run
-   best-bound-first and are skipped when their bound ≤ best found.
-4. **DFS over rows** (fewest options first), lists sorted by worth. Bound at a node =
+   best-bound-first and are skipped when their bound ≤ best found. Prices are **re-tuned per scenario** (80
+   iterations, warm-started from the global prices): the pinned letters change which tiles are scarce, and
+   global prices alone left a ~15% gap on the 2026-11-15b puzzle (35s instead of 4s).
+4. **Two passes**: a quick pass gives the top 400 scenarios 2,000 nodes each to find a strong board early; the
+   full pass then rules most scenarios out at once.
+5. **DFS over rows** (fewest options first), lists sorted by worth. On entering a node, later rows' lists are
+   narrowed to placements that still fit the tiles left. Bound at a node =
    `banked points + price of tiles still on the rack + best feasible worth of each remaining row + bonus max`.
+
+`BONGO_DEBUG=1 ./solve bongo "..."` prints prices, per-scenario bounds, node counts and timings to stderr. Use it
+when a puzzle is slow: look for scenarios whose bound sits far above the best score.
 
 The bound must use **banked points**, not banked worth. Using worth drops the price of already-placed tiles and
 makes the bound too low (this bug happened once; the pruning check below catches it).
@@ -62,7 +70,7 @@ makes the bound too low (this bug happened once; the pruning check below catches
 `Main.kt` also re-scores the winning board with `scoreBoard` and warns if it disagrees with the solver.
 
 Add each new real puzzle to `bongo/puzzles.txt`. The 2025 entries came from the owner's old configs (no wildcard).
-Typical solve time is under 2 seconds; keep any test run well under a minute.
+Typical solve time is 1 to 5 seconds; keep any test run well under a minute.
 
 ## Ideas not done
 

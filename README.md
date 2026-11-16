@@ -27,7 +27,7 @@ The first run compiles the code (a few seconds). Later runs only recompile what 
 ./solve wordbind PASTURESWORD
 ```
 
-**Bongo**: finds the highest-scoring 5x5 board, usually in a second or two.
+**Bongo**: finds the highest-scoring 5x5 board, usually in a few seconds.
 
 ```
 ./solve bongo "CGGHYMDDNULLLLIISSSAAAEEE*|13233343|112423452|C35G45H45Y35M35D30N20U15L10I9S5A5E5"
